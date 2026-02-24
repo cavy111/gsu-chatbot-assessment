@@ -5,4 +5,5 @@ urlpatterns = [
     path('api/', include('faq.urls')),
     path('api/token/', TokenObtainPairView.as_view()),       # login
     path('api/token/refresh/', TokenRefreshView.as_view()),  # refresh token
+    path('api/', include('chat.urls')),
 ]

@@ -1,0 +1,32 @@
+[
+  {
+    "model": "faq.knowledgebase",
+    "pk": 1,
+    "fields": {
+      "category": "Admissions",
+      "question": "How do I apply for admission?",
+      "answer": "You can apply online at the GSU admissions portal. Applications open in January each year.",
+      "keywords": "apply, admission, application, register, enroll"
+    }
+  },
+  {
+    "model": "faq.knowledgebase",
+    "pk": 2,
+    "fields": {
+      "category": "Fees",
+      "question": "How much are the tuition fees?",
+      "answer": "Tuition fees vary by programme. Please visit the finance office or check the GSU website for the current fee schedule.",
+      "keywords": "fees, tuition, cost, payment, money, pay"
+    }
+  },
+  {
+    "model": "faq.knowledgebase",
+    "pk": 3,
+    "fields": {
+      "category": "Library",
+      "question": "What are the library opening hours?",
+      "answer": "The GSU library is open Monday to Friday 8am to 8pm, and Saturday 9am to 1pm.",
+      "keywords": "library, hours, open, opening, books, access"
+    }
+  }
+]
