@@ -128,3 +128,11 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+
+RATELIMIT_USE_CACHE = 'default'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}

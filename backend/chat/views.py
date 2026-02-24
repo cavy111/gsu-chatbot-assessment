@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from faq.models import KnowledgeBase
 from .models import ChatSession
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
+from ratelimit.exceptions import Ratelimited
 
 def find_relevant_faq(message):
     message_words = set(message.lower().split())
@@ -30,6 +33,7 @@ def find_relevant_faq(message):
 class ChatView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True))
     def post(self, request):
         message = request.data.get('message', '').strip()
         session_id = request.data.get('session_id', 'anonymous')
