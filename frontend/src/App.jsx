@@ -4,6 +4,7 @@ import FAQPage from './pages/FAQPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
 import Navbar from './components/Navbar';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
     return (
@@ -13,7 +14,11 @@ function App() {
                 <Route path="/" element={<ChatPage />} />
                 <Route path="/faqs" element={<FAQPage />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/admin" element={
+                    <ProtectedRoute>
+                        <AdminPage />
+                    </ProtectedRoute>
+                } />
             </Routes>
         </BrowserRouter>
     );
