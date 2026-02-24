@@ -3,9 +3,22 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from faq.models import KnowledgeBase
 from .models import ChatSession
-from django.utils.decorators import method_decorator
-from ratelimit.decorators import ratelimit
-from ratelimit.exceptions import Ratelimited
+from django.core.cache import cache
+from django.utils import timezone
+
+def is_rate_limited(ip, limit=10, window=60):
+    key = f'ratelimit_{ip}'
+    requests = cache.get(key, 0)
+    if requests >= limit:
+        return True
+    cache.set(key, requests + 1, timeout=window)
+    return False
+
+def get_client_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded:
+        return forwarded.split(',')[0]
+    return request.META.get('REMOTE_ADDR')
 
 def find_relevant_faq(message):
     message_words = set(message.lower().split())
@@ -33,8 +46,13 @@ def find_relevant_faq(message):
 class ChatView(APIView):
     permission_classes = [AllowAny]
 
-    @method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=True))
     def post(self, request):
+        ip = get_client_ip(request)
+        if is_rate_limited(ip):
+            return Response(
+                {'error': 'Too many requests. Please slow down and try again in a minute.'},
+                status=429
+            )
         message = request.data.get('message', '').strip()
         session_id = request.data.get('session_id', 'anonymous')
 
