@@ -6,6 +6,7 @@ from .models import ChatSession
 from django.core.cache import cache
 from django.conf import settings
 from groq import Groq
+import bleach
 
 client = Groq(api_key=settings.GROQ_API_KEY)
 
@@ -105,6 +106,7 @@ class ChatView(APIView):
             )
 
         message = request.data.get('message', '').strip()
+        message = bleach.clean(message)  # strips any HTML/script tags
         session_id = request.data.get('session_id', 'anonymous')
         history = request.data.get('history', [])
 
