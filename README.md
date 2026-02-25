@@ -21,7 +21,7 @@ An intelligent chatbot system built for Gwanda State University (GSU) to assist 
 
 GSU SmartAssist is a full-stack web application consisting of a Django REST API backend and a React frontend. Users can interact with the chatbot through a clean chat interface, browse FAQs grouped by category, and administrators can manage the knowledge base and review chat logs through a protected admin dashboard.
 
-The chatbot uses keyword-based matching to find relevant answers from a structured knowledge base. Each user message is matched against FAQ keywords stored in the database, and the most relevant answer is returned. All conversations are logged for admin review.
+The chatbot uses a two-stage response strategy. First, keyword-based matching searches the knowledge base for a strong answer. If no confident match is found, the message is escalated to the Groq AI API (LLaMA 3) with relevant FAQs injected as context. Conversation history is maintained using a sliding window of the last 10 messages, giving the AI memory of the current conversation without unbounded token growth. All conversations are logged for admin review.
 
 ---
 
@@ -32,7 +32,7 @@ User/Admin Browser
       │
       ▼
 React Frontend (Vite)
-  - Chat UI
+  - Chat UI (with conversation history)
   - FAQ Page
   - Admin Dashboard
   - JWT stored in localStorage
@@ -43,12 +43,13 @@ Django REST Framework Backend
   - chat app   → POST /api/chat/, GET /api/admin/chat-logs/
   - faq app    → GET /api/faqs/, POST/PUT/DELETE /api/admin/faqs/
   - JWT Auth   → POST /api/token/
-      │
-      ▼
-SQLite Database
-  - Users + Profiles (role-based)
-  - KnowledgeBase (FAQ store)
-  - ChatSessions (conversation logs)
+      │              │
+      ▼              ▼
+SQLite Database    Groq AI API (LLaMA 3)
+  - Users +          - Fallback when keyword
+    Profiles           matching finds no
+  - KnowledgeBase      confident answer
+  - ChatSessions     - FAQs injected as context
 ```
 
 The backend is structured as a **modular monolith** — separate Django apps (`chat`, `faq`) enforce clean separation of concerns while sharing a single database and deployment. This is intentional: for a university chatbot at this scale, a monolith is simpler to build, debug, and deploy than microservices, while still being organized enough to extract services later if needed.
@@ -68,6 +69,7 @@ See `docs/architecture-diagram.png` for a visual overview.
 | HTTP Client | Axios | Interceptors for automatic token attachment |
 | Routing | React Router DOM | Client-side navigation |
 | Rate Limiting | Django cache-based (built-in) | No extra dependencies, limits chat endpoint to 10 req/min per IP |
+| AI | Groq API (LLaMA 3) | Free tier, fast inference, OpenAI-compatible SDK |
 
 ---
 
@@ -122,6 +124,9 @@ exit()
 ```bash
 # Load sample FAQ data
 python manage.py loaddata faq/fixtures/faqs.json
+
+# Create a .env file in the backend folder
+echo GROQ_API_KEY=your-groq-api-key-here > .env
 
 # Start backend server
 python manage.py runserver
@@ -250,11 +255,17 @@ POST /api/chat/
 
 Public endpoint. Rate limited to 10 requests per minute per IP.
 
+The chat logic uses a two-stage strategy: keyword matching is tried first against the knowledge base. If no strong match is found, the message is sent to the Groq AI API with the top 3 relevant FAQs and the last 10 messages of conversation history as context.
+
 Request body:
 ```json
 {
   "message": "How do I apply for admission?",
-  "session_id": "session-123"
+  "session_id": "session-123",
+  "history": [
+    { "role": "user", "content": "Hi" },
+    { "role": "assistant", "content": "Hello! How can I help you?" }
+  ]
 }
 ```
 
@@ -355,7 +366,11 @@ Response:
 
 ## Challenges Faced
 
-**Keyword matching accuracy** — Simple keyword matching works well for exact or near-exact matches but struggles with phrasing variations. For example, "what does it cost to study" may not match a FAQ with keywords like "fees, tuition, payment". This was partially mitigated by encouraging broad keyword coverage in each FAQ entry.
+**Keyword matching accuracy** — Simple keyword matching works well for exact or near-exact matches but struggles with phrasing variations. For example, "what does it cost to study" may not match a FAQ with keywords like "fees, tuition, payment". This was mitigated by lowering the match threshold and always passing the top 3 FAQs as context to the AI even for partial matches.
+
+**OpenAI no longer offers a free API tier** — The initial plan was to use OpenAI for AI responses. After discovering the free tier was discontinued, the project was switched to Groq (LLaMA 3) which offers a generous free tier with fast inference and an OpenAI-compatible SDK, requiring minimal code changes.
+
+**AI context and conversation memory** — Without conversation history, the AI treated every message as a new conversation with no memory of previous messages. This was solved by maintaining a sliding window of the last 10 messages in React state and sending it with each request, giving the AI continuous context without unbounded token growth.
 
 **django-ratelimit compatibility on Windows** — The `django-ratelimit` package failed to import despite being installed correctly on Windows. This was resolved by implementing a custom cache-based rate limiter using Django's built-in cache framework, which achieves the same result without external dependencies.
 
@@ -365,11 +380,11 @@ Response:
 
 ## Future Improvements
 
-**AI/NLP integration** — Integrate the OpenAI API to handle questions that don't match any keywords. The current keyword matching would serve as a first-pass filter; unmatched questions would be escalated to the AI with relevant FAQs injected as context (Retrieval Augmented Generation / RAG pattern).
+**Semantic search with embeddings** — Replace keyword matching with vector embeddings stored in pgvector. This would allow matching based on meaning rather than exact keywords, so "how much does it cost to study" and "what are the tuition fees" would match the same FAQ without needing to manually specify keywords.
 
-**Semantic search with embeddings** — Store vector embeddings for each FAQ using OpenAI's embeddings API and pgvector. This would allow matching based on meaning rather than exact keywords, so "how much does it cost to study" and "what are the tuition fees" would match the same FAQ.
+**AI response streaming** — Stream Groq responses token by token to the frontend so the user sees the answer appearing in real time rather than waiting for the full response.
 
-**WebSocket support** — Replace the request/response HTTP pattern with WebSockets for a more real-time chat feel, especially useful if AI response streaming is added.
+**WebSocket support** — Replace the request/response HTTP pattern with WebSockets for a more real-time chat feel, especially useful combined with response streaming.
 
 **Multilingual support** — Add support for Shona and Ndebele to serve the broader Zimbabwean student population.
 
