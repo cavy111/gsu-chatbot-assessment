@@ -22,6 +22,7 @@ function ChatPage() {
         if (!input.trim()) return;
 
         const userMessage = { from: 'user', text: input };
+        const updatedMessages = [...messages, userMessage];
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setLoading(true);
@@ -29,7 +30,12 @@ function ChatPage() {
         try {
             const res = await api.post('/chat/', {
                 message: input,
-                session_id: sessionId
+                session_id: sessionId,
+                // send last 10 messages as history (sliding window)
+                history: updatedMessages.slice(-10).map(m => ({
+                    role: m.from === 'user' ? 'user' : 'assistant',
+                    content: m.text
+                }))
             });
 
             const botMessage = { from: 'bot', text: res.data.response };
