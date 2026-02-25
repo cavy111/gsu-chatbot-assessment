@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState,useEffect, useRef } from 'react';
 import api from '../api/axios';
 import MessageBubble from '../components/MessageBubble';
 
@@ -8,9 +8,15 @@ function ChatPage() {
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const bottomRef = useRef(null);
 
     // generate a simple session id once per page load
     const sessionId = useState(() => 'session-' + Date.now())[0];
+
+    // scroll to bottom whenever messages change
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, loading]);
 
     const sendMessage = async () => {
         if (!input.trim()) return;
@@ -52,6 +58,8 @@ function ChatPage() {
                     <MessageBubble key={i} message={msg} />
                 ))}
                 {loading && <MessageBubble message={{ from: 'bot', text: 'Typing...' }} />}
+                {/* invisible div at the bottom that we scroll to */}
+                <div ref={bottomRef} />
             </div>
             <div style={styles.inputArea}>
                 <input
