@@ -76,7 +76,7 @@ function ChatPage() {
 }
 
 const styles = {
-    container: { display: 'flex', flexDirection: 'column', height: '90vh', maxWidth: '700px', margin: '0 auto', padding: '20px' },
+    container: { display: 'flex', flexDirection: 'column', height: '80vh', maxWidth: '700px', margin: '0 auto', padding: '20px' },
     chatWindow: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingBottom: '10px' },
     inputArea: { display: 'flex', gap: '10px' },
     input: { flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '16px' },
