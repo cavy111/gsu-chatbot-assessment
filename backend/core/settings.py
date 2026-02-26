@@ -31,7 +31,7 @@ SECRET_KEY = 'django-insecure-x!*2j_h9dztsa5m!_&=9)zphwqly=)(x&j5o4f#)fqlc@(cid^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -85,8 +85,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'gsu_chatbot'),
+        'USER': os.getenv('DB_USER', 'gsu_user'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'gsu_password'),
+        'HOST': os.getenv('DB_HOST', 'db'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
