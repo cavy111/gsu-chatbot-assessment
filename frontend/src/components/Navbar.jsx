@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.jpg';
 
 function Navbar() {
     const navigate = useNavigate();
@@ -12,7 +13,14 @@ function Navbar() {
 
     return (
         <nav style={styles.nav}>
-            <span style={styles.brand}>GSU SmartAssist</span>
+            <span style={styles.brand}>
+                <img 
+                    src={logo} 
+                    alt="GSU Logo" 
+                    style={{ height: '35px', marginRight: '10px', verticalAlign: 'middle' }} 
+                />
+                GSU SmartAssist
+                </span>
             <div style={styles.links}>
                 <Link to="/" style={styles.link}>Chat</Link>
                 <Link to="/faqs" style={styles.link}>FAQs</Link>
