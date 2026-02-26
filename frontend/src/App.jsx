@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import AnalyticsPage from './pages/AnalyticsPage';
 
 function App() {
     return (
@@ -17,6 +18,11 @@ function App() {
                 <Route path="/admin" element={
                     <ProtectedRoute>
                         <AdminPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/analytics" element={
+                    <ProtectedRoute>
+                        <AnalyticsPage />
                     </ProtectedRoute>
                 } />
             </Routes>

@@ -27,6 +27,7 @@ function Navbar() {
                 {token ? (
                     <>
                         <Link to="/admin" style={styles.link}>Dashboard</Link>
+                        <Link to="/analytics" style={styles.link}>Analytics</Link>
                         <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
                     </>
                 ) : (
