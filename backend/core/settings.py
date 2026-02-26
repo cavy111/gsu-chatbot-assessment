@@ -28,11 +28,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-x!*2j_h9dztsa5m!_&=9)zphwqly=)(x&j5o4f#)fqlc@(cid^'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# update DEBUG to be off in production
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost').split(',')
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
 
 # Application definition
 
@@ -130,8 +132,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
-CORS_ALLOW_ALL_ORIGINS = True  # fine for MVP
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
