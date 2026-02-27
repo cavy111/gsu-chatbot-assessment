@@ -173,7 +173,7 @@ processors=2
 swap=2GB
 ```
 
-# Create a .env file in the backend folder
+### Create a .env file in the backend folder
 ```
 GROQ_API_KEY=your-groq-api
 DB_NAME=gsu_chatbot
