@@ -181,6 +181,7 @@ DB_USER=gsu_user
 DB_PASSWORD=gsu_password
 DB_HOST=db
 DB_PORT=5432
+DEBUG=True # dev environment, in production specify CORS_ALLOWED_ORIGINS
 ```
 
 ### Run with Docker
