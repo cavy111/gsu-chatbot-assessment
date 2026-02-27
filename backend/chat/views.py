@@ -28,7 +28,6 @@ class ChatView(APIView):
             return Response({'error': 'Message is required'}, status=400)
 
         best_match = find_best_faq(message)
-        print(best_match)
         if best_match:
             response_text = best_match.answer
         else:

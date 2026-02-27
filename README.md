@@ -7,11 +7,15 @@ An intelligent chatbot system built for Gwanda State University (GSU) to assist 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Live Demo](#live-demo)
 - [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
 - [Setup Instructions](#setup-instructions)
+- [Docker Setup](#docker-setup)
 - [Database Setup](#database-setup)
 - [API Documentation](#api-documentation)
+- [Security](#security)
+- [Testing](#testing)
 - [Challenges Faced](#challenges-faced)
 - [Future Improvements](#future-improvements)
 
@@ -22,6 +26,15 @@ An intelligent chatbot system built for Gwanda State University (GSU) to assist 
 GSU SmartAssist is a full-stack web application consisting of a Django REST API backend and a React frontend. Users can interact with the chatbot through a clean chat interface, browse FAQs grouped by category, and administrators can manage the knowledge base and review chat logs through a protected admin dashboard.
 
 The chatbot uses a two-stage response strategy. First, keyword-based matching searches the knowledge base for a strong answer. If no confident match is found, the message is escalated to the Groq AI API (LLaMA 3) with relevant FAQs injected as context. Conversation history is maintained using a sliding window of the last 10 messages, giving the AI memory of the current conversation without unbounded token growth. All conversations are logged for admin review.
+
+---
+
+## Live Demo
+
+| Service | URL |
+|---------|-----|
+| Frontend | https://gsu-chatbot-assessment.vercel.app |
+| Backend API | https://gsu-chatbot-assessment-production.up.railway.app/api |
 
 ---
 
@@ -64,12 +77,20 @@ See `docs/architecture-diagram.png` for a visual overview.
 |-------|-----------|--------|
 | Backend | Django + Django REST Framework | Mature, batteries-included, clean ORM |
 | Authentication | JWT (djangorestframework-simplejwt) | Stateless, secure, industry standard |
-| Database | SQLite (dev) | Zero-config for MVP; swap to PostgreSQL for production |
+| Database (dev) | SQLite | Zero-config for local development |
+| Database (prod) | PostgreSQL | Concurrent writes, better performance at scale |
 | Frontend | React (Vite) | Fast dev server, component-based UI |
-| HTTP Client | Axios | Interceptors for automatic token attachment |
-| Routing | React Router DOM | Client-side navigation |
+| HTTP Client | Axios | Interceptors for automatic token attachment and 401 handling |
+| Routing | React Router DOM | Client-side navigation with protected routes |
 | Rate Limiting | Django cache-based (built-in) | No extra dependencies, limits chat endpoint to 10 req/min per IP |
 | AI | Groq API (LLaMA 3) | Free tier, fast inference, OpenAI-compatible SDK |
+| Charts | Recharts | Lightweight React charting library |
+| Input Sanitization | Bleach | Strips HTML/script tags from user input |
+| Production Server | Gunicorn | Production-grade WSGI server for Django |
+| Static Files | Whitenoise | Serves static files without a separate web server |
+| Containerization | Docker + Docker Compose | Consistent environments, single command startup |
+| Frontend Hosting | Vercel | Free tier, automatic deploys from GitHub |
+| Backend Hosting | Railway | Free tier, supports Dockerfile and PostgreSQL |
 
 ---
 
@@ -84,7 +105,7 @@ See `docs/architecture-diagram.png` for a visual overview.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/gsu-chatbot-assessment.git
+git clone https://github.com/cavy111/gsu-chatbot-assessment.git
 cd gsu-chatbot-assessment
 ```
 
@@ -107,20 +128,6 @@ python manage.py migrate
 # Create admin superuser
 python manage.py createsuperuser
 
-# Create admin profile
-python manage.py shell
-```
-
-In the shell, run:
-
-```python
-from django.contrib.auth.models import User
-from chat.models import Profile
-user = User.objects.first()
-Profile.objects.create(user=user, role='admin')
-exit()
-```
-
 ```bash
 # Load sample FAQ data
 python manage.py loaddata faq/fixtures/faqs.json
@@ -139,11 +146,72 @@ Backend runs at: `http://127.0.0.1:8000`
 ```bash
 cd frontend
 
+# create environment file
+echo VITE_API_URL=http://127.0.0.1:8000/api > .env
+
 npm install
 npm run dev
 ```
 
 Frontend runs at: `http://localhost:5173`
+
+---
+
+## Docker Setup
+
+Docker runs the entire stack — backend, frontend, and PostgreSQL database — with a single command.
+
+### Prerequisites
+
+- Docker Desktop installed and running
+- `.wslconfig` created at `C:\Users\YOUR_USERNAME\.wslconfig` (Windows only) to cap memory usage:
+
+```
+[wsl2]
+memory=4GB
+processors=2
+swap=2GB
+```
+
+# Create a .env file in the backend folder
+```
+GROQ_API_KEY=your-groq-api
+DB_NAME=gsu_chatbot
+DB_USER=gsu_user
+DB_PASSWORD=gsu_password
+DB_HOST=db
+DB_PORT=5432
+```
+
+### Run with Docker
+
+```bash
+# from the project root
+docker-compose up --build   # first time or after dependency changes
+docker-compose up           # subsequent runs
+docker-compose up -d        # run in background
+docker-compose down         # stop all containers
+```
+
+### Run migrations inside Docker
+
+```bash
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py createsuperuser
+docker-compose exec backend python manage.py loaddata faq/fixtures/faqs.json
+```
+
+### View logs
+
+```bash
+docker-compose logs -f backend    # backend logs
+docker-compose logs -f frontend   # frontend logs
+docker-compose logs -f            # all containers
+```
+
+Services run at:
+- Frontend → `http://localhost`
+- Backend → `http://localhost:8000`
 
 ---
 
@@ -179,22 +247,28 @@ The project uses Django's ORM with SQLite for development. Migrations are includ
 
 ### Switching to PostgreSQL (production)
 
-In `core/settings.py`, replace the DATABASES config with:
+In production the app automatically uses PostgreSQL via the `DATABASE_URL` environment variable provided by Railway. The `dj-database-url` package parses this into Django's database config automatically:
 
 ```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'gsu_chatbot',
-        'USER': 'your_db_user',
-        'PASSWORD': 'your_db_password',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-```
+import dj_database_url
 
-Then run `pip install psycopg2-binary` and `python manage.py migrate`.
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
+else:
+    # falls back to local PostgreSQL config for Docker
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'gsu_chatbot'),
+            'USER': os.getenv('DB_USER', 'gsu_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'gsu_password'),
+            'HOST': os.getenv('DB_HOST', 'db'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
+```
 
 ---
 
@@ -362,6 +436,70 @@ Response:
 ]
 ```
 
+### Analytics
+
+#### Get analytics data (admin only)
+
+```
+GET /api/admin/analytics/
+```
+
+Response:
+```json
+{
+  "summary": {
+    "total_messages": 42,
+    "total_sessions": 15,
+    "unmatched_queries": 8
+  },
+  "messages_over_time": [
+    { "date": "2024-01-15", "messages": 10 }
+  ],
+  "topics": [
+    { "topic": "Admissions", "count": 18 }
+  ],
+  "messages_per_session": [
+    { "session": "session-123...", "messages": 5 }
+  ]
+}
+```
+
+## Security
+
+The following security measures are implemented:
+
+**Authentication** — All admin endpoints are protected with JWT tokens. Unauthenticated requests return 401, non-admin requests return 403.
+
+**Input sanitization** — User messages are sanitized using `bleach` before processing and storage, stripping any HTML or script tags to prevent XSS.
+
+**Rate limiting** — The public chat endpoint is limited to 10 requests per minute per IP using Django's built-in cache framework. Exceeding the limit returns a 429 response.
+
+**SQL injection** — Django's ORM automatically parameterizes all queries. No raw SQL is used anywhere in the codebase.
+
+**CORS** — In development all origins are allowed. In production CORS is restricted to the specific Vercel frontend domain via the `CORS_ALLOWED_ORIGINS` environment variable.
+
+**Secret management** — All sensitive values (API keys, database credentials, secret key) are stored in environment variables and never committed to version control. `.env` is in `.gitignore`.
+
+**Token expiry handling** — The Axios response interceptor automatically clears expired tokens from localStorage and redirects to the login page on any 401 response.
+
+---
+
+## Testing
+
+Unit tests cover the security-sensitive components of the application. Run tests with:
+
+```bash
+python manage.py test
+```
+
+Tests cover:
+- Chat endpoint returns a valid response
+- Keyword matching returns the correct FAQ answer
+- Admin FAQ endpoint rejects unauthenticated requests (401)
+- Admin FAQ endpoint rejects non-admin users (403)
+- Admin FAQ endpoint allows admin users (201)
+- Chat logs endpoint rejects unauthenticated requests (401)
+
 ---
 
 ## Challenges Faced
@@ -374,7 +512,13 @@ Response:
 
 **django-ratelimit compatibility on Windows** — The `django-ratelimit` package failed to import despite being installed correctly on Windows. This was resolved by implementing a custom cache-based rate limiter using Django's built-in cache framework, which achieves the same result without external dependencies.
 
-**CORS configuration** — During development, the React frontend and Django backend run on different ports (5173 and 8000), which triggers CORS errors. This was resolved using `django-cors-headers` with `CORS_ALLOW_ALL_ORIGINS = True` for development. In production this should be locked down to the specific frontend domain.
+**CORS in production** — Setting `CORS_ALLOW_ALL_ORIGINS = True` works in development but is a security risk in production. This was resolved by tying the setting to the `DEBUG` flag and using the `CORS_ALLOWED_ORIGINS` environment variable to explicitly list allowed origins in production.
+
+**Docker and Python version mismatch** — Django 6.0.2 requires Python 3.12 but the Dockerfile was using `python:3.11-slim`, causing the pip install to fail. This was resolved by updating the Dockerfile base image to `python:3.12-slim`.
+
+**Railway internal database URL** — Running `railway run` migrations locally failed because Railway's internal database URL (`postgres.railway.internal`) is only accessible from within Railway's network. This was resolved by using the public database URL for local migration runs.
+
+**Frontend environment variable missing protocol** — The `VITE_API_URL` on Vercel was set without `https://`, causing Axios to treat the Railway URL as a relative path and append it to the Vercel domain. Adding the full protocol fixed all API requests.
 
 ---
 
@@ -388,10 +532,6 @@ Response:
 
 **Multilingual support** — Add support for Shona and Ndebele to serve the broader Zimbabwean student population.
 
-**Analytics dashboard** — Add charts to the admin panel showing message volume over time, most asked questions, and unmatched query patterns to help administrators improve the knowledge base.
-
 **Redis cache** — Replace Django's in-memory cache with Redis for rate limiting and session storage, enabling the app to scale across multiple server processes.
 
-**Docker deployment** — Containerise the backend and frontend with Docker Compose for consistent, reproducible deployments.
-
-**PostgreSQL in production** — Migrate from SQLite to PostgreSQL for concurrent write support and better performance at scale.
+**Full test coverage** — Expand unit and integration tests to cover all endpoints, edge cases, and the AI fallback logic.
