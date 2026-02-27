@@ -122,6 +122,9 @@ source venv/bin/activate     # macOS/Linux
 # Install dependencies
 pip install -r requirements.txt
 
+# Create a .env file in the backend folder
+echo GROQ_API_KEY=your-groq-api-key-here > .env
+
 # Run migrations
 python manage.py migrate
 
@@ -131,9 +134,6 @@ python manage.py createsuperuser
 ```bash
 # Load sample FAQ data
 python manage.py loaddata faq/fixtures/faqs.json
-
-# Create a .env file in the backend folder
-echo GROQ_API_KEY=your-groq-api-key-here > .env
 
 # Start backend server
 python manage.py runserver
